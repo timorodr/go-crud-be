@@ -8,7 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/timorodr/go-react-CRUD/models"
-	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson" // Binary JSON encodes type and length info which allows it to be traversed more quickly compared to JSON
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	// "gopkg.in/mgo.v2/bson"
@@ -88,16 +88,94 @@ func GetEntryById(c *gin.Context) {
 }
 
 func GetEntriesByIngredient(c *gin.Context) {
+	ingredient := c.Params.ByName("id") // gets ingredient id
+	var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
+	var entries []bson.M // splice bringing all in this var
 
-}
+	cursor, err := entryCollection.Find(ctx, bson.M{"ingredients": ingredient}) // instead of passing empty object 
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		fmt.Println(err)
+		return
+	}
+	if err = cursor.All(ctx, &entries); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		fmt.Println(err)
+		return
+	}
+	defer cancel()
+	fmt.Println(entries)
+	
 
-func UpdateEntry(c *gin.Context) {
+	c.JSON(http.StatusOK, entries)
 
 }
 
 func UpdateIngredient(c *gin.Context) {
-	entryID := params.ByName("id")
+	entryID := c.Params.ByName("id")
 	docID, _ := primitive.ObjectIDFromHex(entryID)
+	var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
+
+	type Ingredient struct {
+		Ingredients *string `json: "ingredients"` // sending this deferring with * - JSON wills look like this sending this
+	}
+
+	var ingredient Ingredient
+
+	if err := c.BindJSON(&ingredient); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		fmt.Println(err)
+		return // bind JSON serializes basically?
+	}
+
+	result, err := entryCollection.UpdateOne(ctx, bson.M{"_id": docID},
+		bson.D{{"$set", bson.D{{"ingredients", ingredient.Ingredients}}}}, // $ mongoDB .D ordered rep of a BSON doc - with ingredients and the ingredient var that refers to the struct that holds Ingredients JSON *string
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		fmt.Println(err)
+		return
+	}
+	defer cancel()
+	c.JSON(http.StatusOK, result.ModifiedCount) // number of Docs modified by the operation
+}
+
+func UpdateEntry(c *gin.Context) {
+	entryID := Params.ByName("id")
+	docID, _ := primitive.ObjectIDFromHex(entryID)
+	var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
+	var entry models.Entry
+
+	if err := c.BindJSON(&entry); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		fmt.Println(err)
+		return // bind JSON serializes basically?
+	}
+
+	validationErr := validate.Struct(entry)
+	if validationErr != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": validationErr.Error()})
+		fmt.Println(validationErr)
+		return
+	}
+
+	result, err := entryCollection.ReplaceOne(
+		ctx,
+		bson.M{"_id": docID},
+		bson.M{
+			"dish":        entry.Dish,
+			"fat":         entry.Fat,
+			"ingredients": entry.Ingredients,
+			"calories":    entry.Calories,
+		},
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		fmt.Println(err)
+		return
+	}
+	defer cancel()
+	c.JSON(http.StatusOK, result.ModifiedCount)
 }
 
 func DeleteEntry(c *gin.Context) {
