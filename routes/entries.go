@@ -2,27 +2,66 @@ package routes
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"time"
-	"fmt"
 
 	"github.com/gin-gonic/gin"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	// "gopkg.in/mgo.v2/bson"
 )
 
-var entryCollection *mongo.Collection = openCollection(Client, "calories")
+// Open Collection from connection.go
+var entryCollection *mongo.Collection = OpenCollection(Client, "calories")
+
+// Context is the most important part of gin. It allows us to pass variables between middleware, manage the flow, validate the JSON of a request and render a JSON response
 
 func AddEntry(c *gin.Context) { // access to params and request through gin.Context
-
+	var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
+	var entry models.Entry
 }
 
 func GetEntries(c *gin.Context) {
+	var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
 
+	var entries []bson.M                               // M is an unordered representation of a BSON document. This type should be used when the order of the elements does not matter. This type is handled as a regular map[string]interface{} when encoding and decoding. Elements will be serialized in an undefined, random order.
+	cursor, err := entryCollection.Find(ctx, bson.M{}) // passing through empty object you get all values if you want specific you must declare/specify
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		fmt.Println(err)
+		return
+	}
+
+	if err = cursor.All(ctx, &entries); err != nil {
+		// c.JSON serializes the given struct as JSON into the response body - it also sets the Content-Type as "application/json"
+		// process of converting a data structure or object into a format that can be easily stored or transmitted
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		fmt.Println(err)
+		return
+	}
+	defer cancel()
+	fmt.Println(entries)
+	c.JSON(http.StatusOK, entries)
 }
 
 func GetEntryById(c *gin.Context) {
+	EntryID := c.Params.ByName("id")
+	docID, _ := primitive.ObjectIDFromHex(EntryID) // primistive BSON package helps us with ID's
 
+	var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
+	var entry bson.M
+
+	if err := entryCollection.FindOne(ctx, bson.M{"_id": docID}).Decode(&entry); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		fmt.Println(err)
+		return
+	}
+	defer cancel()
+	fmt.Println(entry)
+	c.JSON(http.StatusOK, entry)
 }
 
 func GetEntriesByIngredient(c *gin.Context) {
@@ -39,11 +78,11 @@ func UpdateIngredient(c *gin.Context) {
 
 func DeleteEntry(c *gin.Context) {
 	entryID := c.Params.ByName("id")
-	docID ,_ := primitive.ObjectIDFromHex(entryID)
+	docID, _ := primitive.ObjectIDFromHex(entryID)
 
 	var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
 
-	result, err := entryCollection.DeleteOne(ctx, bson.M{"_id":docID})
+	result, err := entryCollection.DeleteOne(ctx, bson.M{"_id": docID})
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
