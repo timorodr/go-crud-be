@@ -11,9 +11,11 @@ import (
 	"go.mongodb.org/mongo-driver/bson" // Binary JSON encodes type and length info which allows it to be traversed more quickly compared to JSON
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
+	"github.com/go-playground/validator/v10"
 	// "gopkg.in/mgo.v2/bson"
 )
 
+var validate = validator.New() // helps build strong and safe programs by checking info and making sure if follows the rule set
 // Open Collection from connection.go
 var entryCollection *mongo.Collection = OpenCollection(Client, "calories")
 
@@ -105,7 +107,7 @@ func GetEntriesByIngredient(c *gin.Context) {
 	}
 	defer cancel()
 	fmt.Println(entries)
-	
+
 
 	c.JSON(http.StatusOK, entries)
 
@@ -141,7 +143,7 @@ func UpdateIngredient(c *gin.Context) {
 }
 
 func UpdateEntry(c *gin.Context) {
-	entryID := Params.ByName("id")
+	entryID := c.Params.ByName("id")
 	docID, _ := primitive.ObjectIDFromHex(entryID)
 	var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
 	var entry models.Entry
