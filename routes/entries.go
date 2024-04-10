@@ -146,6 +146,7 @@ func UpdateEntry(c *gin.Context) {
 	entryID := c.Params.ByName("id")
 	docID, _ := primitive.ObjectIDFromHex(entryID)
 	var ctx, cancel = context.WithTimeout(context.Background(), 100*time.Second)
+
 	var entry models.Entry
 
 	if err := c.BindJSON(&entry); err != nil {
