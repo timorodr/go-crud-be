@@ -6,8 +6,8 @@ import (
 // model in DB
 type Entry struct { 
 	ID			primitive.ObjectID	`bson:"id"` // ID created by GO so we dont have to pass it help of bson pkg Golang understands this type
-	Dish		*string				`json: "dish"` // *string passes refernece
-	Fat			*string				`json: "fat"`
+	Dish		*string				`json: "dish"`
+	Fat			*float64			`json: "fat"`
 	Ingredients	*string				`json: "ingredients"`
 	Calories	*string				`json: "calories"`
 }
