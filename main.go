@@ -13,9 +13,14 @@ func main() {
 		port = "8000"
 	}
 
+
+	config := cors.DefaultConfig()
+	config.AllowOrigins = []string{"https://go-react-fe.netlify.app"}
+
 	router := gin.New()
 	router.Use(gin.Logger()) // shows when whcih API was called
-	router.Use(cors.Default())
+	// router.Use(cors.Default())
+	router.Use(cors.New(config))
 
 	router.POST("/entry/create", routes.AddEntry)
 	router.GET("/entries", routes.GetEntries)
